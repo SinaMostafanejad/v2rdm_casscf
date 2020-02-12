@@ -1,7 +1,7 @@
 cmake_policy(SET CMP0048 NEW)  # project_VERSION* variables populated from project(... VERSION x.x.x) string
 project(v2rdm_casscf
         VERSION 0.8
-        LANGUAGES CXX Fortran)
+	LANGUAGES C CXX Fortran)
 set(v2rdm_casscf_AUTHORS      "A. Eugene DePrince III")
 set(v2rdm_casscf_DESCRIPTION  "Variational 2-RDM-driven CASSCF plugin to Psi4")
 set(v2rdm_casscf_URL          "github.com/edeprince3/v2rdm_casscf")
@@ -24,6 +24,7 @@ option_with_print(ENABLE_OPENMP "Enable threadsafe linking to OpenMP parallelize
 
 # <<<  Prepare  >>>
 
+include(custom_color_messages)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
@@ -114,6 +115,14 @@ add_psi4_plugin(v2rdm_casscf
     focas_transform_oeints.F90
     focas_transform_teints.F90
 )
+
+set(openrdm_DIR "/home/sina/MOLSSI/RDMInoles-Prototype/build/stage/share/cmake/openrdm")
+find_package(openrdm 0.2.0 CONFIG REQUIRED)
+if(openrdm_FOUND)
+        message(STATUS "${Cyan}OpenRDM (${openrdm_VERSION}) is found in${ColourReset}: ${openrdm_DIR}")
+endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE openrdm::openrdm)
 
 target_link_libraries(v2rdm_casscf PRIVATE ${LIBC_INTERJECT})
 
