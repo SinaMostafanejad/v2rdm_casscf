@@ -55,6 +55,20 @@ void export_v2RDMHelper(py::module& m) {
         .def("get_opdm_sparse", &v2RDMHelper::get_opdm_sparse)
         .def("get_tpdm_sparse", &v2RDMHelper::get_tpdm_sparse)
         .def("compute_energy", &v2RDMHelper::compute_energy);
+
+    py::class_<v2rdm_casscf::opdm, std::shared_ptr<v2rdm_casscf::opdm> >(m, "opdm")
+        .def(py::init<>())
+        .def_readwrite("i", &opdm::i)
+        .def_readwrite("j", &opdm::j)
+        .def_readwrite("value", &opdm::value);
+
+    py::class_<v2rdm_casscf::tpdm, std::shared_ptr<v2rdm_casscf::tpdm> >(m, "tpdm")
+        .def(py::init<>())
+        .def_readwrite("i", &tpdm::i)
+        .def_readwrite("j", &tpdm::j)
+        .def_readwrite("k", &tpdm::k)
+        .def_readwrite("l", &tpdm::l)
+        .def_readwrite("value", &tpdm::value);
 }
 
 PYBIND11_MODULE(v2rdm_casscf, m) {
