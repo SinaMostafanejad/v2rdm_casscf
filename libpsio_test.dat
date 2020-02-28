@@ -1,0 +1,70 @@
+#!/bin/python
+#============================================ module imports
+import os
+import sys
+import numpy as np
+import psi4
+from psi4 import core
+from psi4.driver import psifiles as psif
+#============================================ mock scf calculation
+molecule h2 {
+0 1
+h
+h 1 r
+}
+
+set {
+  basis sto-3g
+  mcscf_type df
+  scf_type df
+  d_convergence      1e-10
+  maxiter 500
+}
+
+activate(h2)
+h2.r = 1.0
+
+scf_en,scf_wfn = energy('scf',return_wfn = True)
+#==================================== defining useful variables for libpsio
+PSIF_V2RDM_D1A  = 277
+PSIO_OPEN_NEW = 0
+PSIO_OPEN_OLD = 1
+REMOVE = 0
+KEEP = 1
+#==================================== initializing and marking psif files
+psioman = psi4.core.IOManager.shared_object()
+psioman.set_specific_retention(PSIF_V2RDM_D1A,True)
+psioman.set_specific_path(PSIF_V2RDM_D1A, './')
+#====================================
+psioh = psi4.core.IO.shared_object()
+class OPDM:
+    def __init__(self):
+       self.i = 0
+       self.j = 0
+       self.val = 0
+#------------------------------------  opening, writing, closing while saving the psif files
+psioh.open(PSIF_V2RDM_D1A,PSIO_OPEN_NEW)
+
+opdm = OPDM()
+opdm.i = 1
+opdm.j = 2
+opdm.val = 120
+
+psioh.write_entry(PSIF_V2RDM_D1A, "D1a", str(id(opdm)), sys.getsizeof(opdm))
+
+psioh.close(PSIF_V2RDM_D1A,KEEP)
+#------------------------------------ opening the old psif file and reading its content to print
+psioh.open(PSIF_V2RDM_D1A,PSIO_OPEN_OLD)
+
+opdm2 = OPDM()
+
+psioh.read_entry(PSIF_V2RDM_D1A, "D1a", str(id(opdm2)), sys.getsizeof(opdm2))
+
+psioh.close(PSIF_V2RDM_D1A,REMOVE)
+#------------------------------------
+print("Original data: ", opdm.i, opdm.j, opdm.val)
+print("New data: ", opdm2.i, opdm2.j, opdm2.val)
+#------------------------------------
+psioman.print_out()
+psioman.psiclean()
+#====================================
