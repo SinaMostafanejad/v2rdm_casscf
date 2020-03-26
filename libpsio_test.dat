@@ -6,6 +6,7 @@ import numpy as np
 import psi4
 from psi4 import core
 from psi4.driver import psifiles as psif
+from ctypes import *
 #============================================ mock scf calculation
 molecule h2 {
 0 1
@@ -45,25 +46,36 @@ class OPDM:
 #------------------------------------  opening, writing, closing while saving the psif files
 psioh.open(PSIF_V2RDM_D1A,PSIO_OPEN_NEW)
 
-opdm = OPDM()
-opdm.i = 1
-opdm.j = 2
-opdm.val = 120
+#opdm = OPDM()
+#opdm.i = 1
+#opdm.j = 2
+#opdm.val = 120
+opdm_c = c_char_p(b'120')
+#opdm_c.value = b'120'
+psioh.write_entry(PSIF_V2RDM_D1A, "D1a", string_at(addressof(opdm_c)), sizeof(opdm_c))
 
-psioh.write_entry(PSIF_V2RDM_D1A, "D1a", str(id(opdm)), sys.getsizeof(opdm))
+opdm2_c = create_string_buffer(sizeof(opdm_c))
+#opdm2_c = c_char_p(8)
+#opdm2_p = byref(opdm2_c)
+
+psioh.read_entry(PSIF_V2RDM_D1A, "D1a", string_at(addressof(opdm2_c)), sizeof(opdm2_c))
 
 psioh.close(PSIF_V2RDM_D1A,KEEP)
 #------------------------------------ opening the old psif file and reading its content to print
-psioh.open(PSIF_V2RDM_D1A,PSIO_OPEN_OLD)
-
-opdm2 = OPDM()
-
-psioh.read_entry(PSIF_V2RDM_D1A, "D1a", str(id(opdm2)), sys.getsizeof(opdm2))
-
-psioh.close(PSIF_V2RDM_D1A,REMOVE)
+#psioh.open(PSIF_V2RDM_D1A,PSIO_OPEN_OLD)
+#
+#opdm2 = OPDM()
+#
+#opdm2_c = create_string_buffer(sys.getsizeof(opdm2))
+#
+#psioh.read_entry(PSIF_V2RDM_D1A, "D1a", pointer(opdm2_c)[0], sys.getsizeof(opdm2_c))
+#
+#psioh.close(PSIF_V2RDM_D1A,REMOVE)
 #------------------------------------
-print("Original data: ", opdm.i, opdm.j, opdm.val)
-print("New data: ", opdm2.i, opdm2.j, opdm2.val)
+print("Original data: ", opdm_c.value)
+print("New data: ", opdm2_c.value)
+#print("Original data: ", opdm.i, opdm.j, opdm.val)
+#print("New data: ", opdm2.i, opdm2.j, opdm2.val)
 #------------------------------------
 psioman.print_out()
 psioman.psiclean()

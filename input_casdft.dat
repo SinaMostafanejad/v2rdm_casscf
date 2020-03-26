@@ -1,0 +1,277 @@
+#!/bin/python
+# input test for casscf + pdft
+#============================================
+#sys.path.insert(0, '/home/sina/MySoftwares/psi4_01_09_2020/objdir/stage/lib/psi4/driver/procrouting/mcscf')
+import os
+import sys
+import numpy as np
+import psi4
+from psi4 import core
+from psi4.driver import psifiles as psif
+from psi4.driver.procrouting.mcscf import mcscf_solver
+import mcpdft
+import v2rdm_casscf
+#import scipy
+#============================================
+molecule h2 {
+0 1
+h
+h 1 r
+}
+
+set {
+  basis cc-pvdz
+  mcscf_type df
+  scf_type df
+  d_convergence      1e-10
+  maxiter 500
+  #                     Ag   B1g   B2g   B3g    Au   B1u   B2u   B3u
+  restricted_docc [     0,    0,    0,    0,    0,    0,    0,    0 ]
+  active          [     1,    0,    0,    0,    0,    1,    0,    0 ]
+  restricted_uocc [     2,    0,    1,    1,    0,    2,    1,    1 ]
+  #restricted_docc [  0 ]
+  #restricted_uocc [  8 ]
+  #active          [  2 ]
+  #set symmetry c1
+}
+set v2rdm_casscf {
+  positivity d
+  r_convergence  1e-6
+  e_convergence  1e-8
+  maxiter 20000
+}
+
+activate(h2)
+
+h2.r = 1.0
+
+set df_ints_io save
+scf_en,scf_wfn = energy('scf',return_wfn = True)
+
+#====================================
+ciwfn = mcscf_solver(scf_wfn)
+#====================================
+Cocc = ciwfn.get_orbitals("DOCC")
+Cact = ciwfn.get_orbitals("ACT")
+Cvir = ciwfn.get_orbitals("VIR")
+Cocc.print_out()
+Cact.print_out()
+Cvir.print_out()
+#====================================
+nso = ciwfn.nso()
+nmo = ciwfn.nmo()
+nalpha = ciwfn.nalpha()
+nbeta = ciwfn.nbeta()
+nalphapi = ciwfn.nalphapi()
+nbetapi = ciwfn.nbetapi()
+soccpi = ciwfn.soccpi()
+doccpi = ciwfn.doccpi
+nirrep = ciwfn.nirrep()
+nsopi = ciwfn.nsopi()
+nmopi = ciwfn.nmopi()
+frzcpi = ciwfn.frzcpi()
+frzvpi = ciwfn.frzvpi()
+#====================================
+rstcpi = []
+rstvpi = []
+amopi  = []
+for h in range(nirrep):
+  rstcpi.append(np.size(Cocc.nph[h],1))
+  amopi.append(np.size(Cact.nph[h],1))
+  rstvpi.append(np.size(Cvir.nph[h],1))
+#print(rstcpi)
+#print(amopi)
+#print(rstvpi)
+#------------------------------------
+pitzer_offset = []
+count = 0
+nmos = 0
+for h in range(nirrep):
+  count += amopi[h]
+  pitzer_offset.append(count)
+  nmos += frzcpi[h] + rstcpi[h] + amopi[h] + rstvpi[h] #+frzvpi[h]
+#print(nmo)
+#print(nmos)
+#print(nmo == nmos)
+#print(pitzer_offset)
+#====================================
+d1a_act = ciwfn.get_opdm(-1, -1, "A", False)
+d1b_act = ciwfn.get_opdm(-1, -1, "B", False)
+d1_act  = ciwfn.get_opdm(-1, -1, "SUM", False)
+d1a_act.print_out()
+d1b_act.print_out()
+d1_act.print_out()
+#------------------------------------
+# (private member in CIWavefunction class)
+d1a_full = ciwfn.opdm_add_inactive(d1a_act, 1.0, True)
+d1b_full = ciwfn.opdm_add_inactive(d1b_act, 1.0, True)
+d1_full  = ciwfn.opdm_add_inactive(d1_act, 2.0, True)
+d1a_full.print_out()
+d1b_full.print_out()
+d1_full.print_out()
+#====================================
+d2aa_act = ciwfn.get_tpdm("AA", False)
+d2bb_act = ciwfn.get_tpdm("BB", False)
+d2ab_act = ciwfn.get_tpdm("AB", False)
+d2_act = ciwfn.get_tpdm("SUM", False)
+#d2_act = ciwfn.get_tpdm("SUM", True)   #SYMMETRIZE
+d2aa_act.print_out()
+d2bb_act.print_out()
+d2ab_act.print_out()
+d2_act.print_out()
+#====================================
+PSIF_V2RDM_D2AA = 270
+PSIF_V2RDM_D2BB = 272
+PSIF_V2RDM_D2AB = 271
+PSIF_V2RDM_D1A  = 277
+PSIF_V2RDM_D1B  = 278
+psioman = psi4.core.IOManager.shared_object()
+psioman.set_specific_retention(PSIF_V2RDM_D2AA,True)
+psioman.set_specific_retention(PSIF_V2RDM_D2BB,True)
+psioman.set_specific_retention(PSIF_V2RDM_D2AB,True)
+psioman.set_specific_retention(PSIF_V2RDM_D1A,True)
+psioman.set_specific_retention(PSIF_V2RDM_D1B,True)
+#psioman.set_specific_retention(psif.PSIF_MO_OPDM,True)
+#psioman.set_specific_retention(psif.PSIF_MO_TPDM,True)
+#psioman.set_specific_retention(psif.PSIF_MO_AA_TPDM,True)
+#psioman.set_specific_retention(psif.PSIF_MO_BB_TPDM,True)
+#psioman.set_specific_retention(psif.PSIF_MO_AB_TPDM,True)
+#------------------------------------
+psioman.set_specific_path(PSIF_V2RDM_D2AA, './')
+psioman.set_specific_path(PSIF_V2RDM_D2BB, './')
+psioman.set_specific_path(PSIF_V2RDM_D2AB, './')
+psioman.set_specific_path(PSIF_V2RDM_D1A, './')
+psioman.set_specific_path(PSIF_V2RDM_D1B, './')
+#psioman.set_specific_path(psif.PSIF_MO_OPDM, './')
+#psioman.set_specific_path(psif.PSIF_MO_TPDM, './')
+#psioman.set_specific_path(psif.PSIF_MO_AA_TPDM, './')
+#psioman.set_specific_path(psif.PSIF_MO_BB_TPDM, './')
+#psioman.set_specific_path(psif.PSIF_MO_AB_TPDM, './')
+#------------------------------------
+PSIO_OPEN_NEW = 0
+PSIO_OPEN_OLD = 1
+REMOVE = 0
+KEEP = 1
+#------------------------------------
+#print(psioh.get_default_path())
+psioh = psi4.core.IO.shared_object()
+#psioh.open(PSIF_V2RDM_D2AA,PSIO_OPEN_NEW)
+#psioh.open(PSIF_V2RDM_D2BB,PSIO_OPEN_NEW)
+#psioh.open(PSIF_V2RDM_D2AB,PSIO_OPEN_NEW)
+#psioh.open(PSIF_V2RDM_D1A,PSIO_OPEN_NEW)
+#psioh.open(PSIF_V2RDM_D1B,PSIO_OPEN_NEW)
+#psioh.open(psif.PSIF_MO_OPDM,PSIO_OPEN_NEW)
+#psioh.open(psif.PSIF_MO_TPDM,PSIO_OPEN_NEW)
+#psioh.open(psif.PSIF_MO_AA_TPDM,PSIO_OPEN_OLD)
+#psioh.open(psif.PSIF_MO_BB_TPDM,PSIO_OPEN_OLD)
+#psioh.open(psif.PSIF_MO_AB_TPDM,PSIO_OPEN_OLD)
+#------------------------------------
+# (private members in psio_address and PSIO classes)
+#addr_d1a = psi4.core.psio_address = 0
+#addr_d1b = psi4.core.psio_address = 0
+#for h in range(nirrep):
+#    for i in range(amopi[h]):
+#        for j in range(amopi[h]):
+#for i in range(len(opdm)):
+#           opdm[i].val = 1.0
+#           psioh.write_entry(PSIF_V2RDM_D1A, "D1a", str(id(opdm)), sys.getsizeof(d1_full))
+class OPDM:
+    def __init__(self):
+       self.i = 0
+       self.j = 0
+       self.val = 0
+
+psioh.open(PSIF_V2RDM_D1A,PSIO_OPEN_NEW)
+#psioh.open(PSIF_V2RDM_D1B,PSIO_OPEN_NEW)
+
+opdm = OPDM()
+opdm.i = 1
+opdm.j = 2
+opdm.val = 120
+psioh.write_entry(PSIF_V2RDM_D1A, "D1a", str(id(opdm)), sys.getsizeof(opdm))
+print(opdm.i, opdm.j, opdm.val)
+psioh.close(PSIF_V2RDM_D1A,KEEP)
+
+psioh.open(PSIF_V2RDM_D1A,PSIO_OPEN_OLD)
+opdm2 = OPDM()
+psioh.read_entry(PSIF_V2RDM_D1A, "D1a", str(id(opdm2)), sys.getsizeof(opdm2))
+print(opdm2.i, opdm2.j, opdm2.val)
+
+#counter_a = 0
+##counter_b = 0
+#opdm_vec = []
+#for h in range(nirrep):
+#    for i in range(amopi[h]):
+#        for j in range(amopi[h]):
+#           opdma = OPDM()
+#           opdma.i = i
+#           opdma.j = j
+#           opdma.val = d1a_full.nph[h][i,j]
+#           opdm_vec.append(opdma)
+#           #opdmb = OPDM()
+#           #opdmb.i = i
+#           #opdmb.j = j
+#           #opdmb.val = d1a_full.nph[h][i,j]
+#           #psioh.write_entry(PSIF_V2RDM_D1B, "D1b", str(id(opdmb)), sys.getsizeof(opdmb))
+#           counter_a += 1
+#           #counter_b += 1
+#
+#psioh.write_entry(PSIF_V2RDM_D1A, "D1a", str(id(opdm_vec)), sys.getsizeof(opdm_vec))
+#
+#psioh.write_entry(PSIF_V2RDM_D1A, "length", str(id(counter_a)), sys.getsizeof(counter_a))
+##psioh.write_entry(PSIF_V2RDM_D1B, "length", str(id(counter_b)), sys.getsizeof(counter_b))
+#rcounter_a = 0
+#psioh.read_entry(PSIF_V2RDM_D1A, "length", str(id(rcounter_a)), sys.getsizeof(rcounter_a))
+#print(rcounter_a)
+#
+#psioh.close(PSIF_V2RDM_D1A,KEEP)
+##psioh.close(PSIF_V2RDM_D1B,KEEP)
+#------------------------------------
+#psioh.open(PSIF_V2RDM_D1A,PSIO_OPEN_OLD)
+##psioh.open(PSIF_V2RDM_D1B,PSIO_OPEN_OLD)
+#
+#rcounter_a = 0
+##rcounter_b = 0
+#ropdma = OPDM()
+#psioh.read_entry(PSIF_V2RDM_D1A, "length", str(id(rcounter_a)), sys.getsizeof(rcounter_a))
+##psioh.read_entry(PSIF_V2RDM_D1B, "length", str(id(rcounter_b)), sys.getsizeof(rcounter_b))
+#
+#ropdm_vec = []
+#for i in range(rcounter_a):
+#   opdm_i = OPDM()
+#   #print(ropdma[i].i)
+#   ropdm_vec.append(opdm_i)
+#
+#psioh.read_entry(PSIF_V2RDM_D1A, "D1a", str(id(ropdm_vec)), sys.getsizeof(ropdm_vec))
+#
+#for k in range(rcounter_a):
+#   print("D(%i,%i) = %f" % (ropdm_vec[k].i, ropdm_vec[k].j, ropdm_vec[k].val))
+#
+#psioh.tocprint(PSIF_V2RDM_D1A)
+#psioh.tocwrite(PSIF_V2RDM_D1A)
+#
+#psioh.close(PSIF_V2RDM_D1A,KEEP)
+##psioh.close(PSIF_V2RDM_D1B,KEEP)
+##psioh.open(PSIF_V2RDM_D1A,PSIO_OPEN_OLD)
+##psioh.read_entry(PSIF_V2RDM_D1A, "D1a", str(id(opdm)), sys.getsizeof(d1_full))
+#
+##psioh.write()
+#------------------------------------
+#psioh.close(PSIF_V2RDM_D2AA,REMOVE)
+#psioh.close(PSIF_V2RDM_D2AB,REMOVE)
+#psioh.close(PSIF_V2RDM_D2BB,REMOVE)
+#psioh.close(PSIF_V2RDM_D1A,KEEP)
+#psioh.close(PSIF_V2RDM_D1B,REMOVE)
+#psioh.close(psif.PSIF_MO_OPDM,REMOVE)
+#psioh.close(psif.PSIF_MO_TPDM,REMOVE)
+#psioh.close(psif.PSIF_MO_AA_TPDM,REMOVE)
+#psioh.close(psif.PSIF_MO_BB_TPDM,REMOVE)
+#psioh.close(psif.PSIF_MO_AB_TPDM,REMOVE)
+#------------------------------------
+#psioh.tocwrite(psif.PSIF_MO_AB_TPDM)
+#psioh.tocprint(psif.PSIF_MO_AB_TPDM)
+psioman.print_out()
+#psioman.psiclean()
+#====================================
+#energy('mcpdft',ref_wfn=ciwfn)
+
