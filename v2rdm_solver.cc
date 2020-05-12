@@ -2041,9 +2041,9 @@ double v2RDMSolver::compute_energy() {
     // for derivatives:
     if ( options_.get_str("DERTYPE") == "FIRST" ) {
 
-        if ( options_.get_bool("NAT_ORBS") || options_.get_bool("FCIDUMP") || options_.get_bool("EXTENDED_KOOPMANS") ) {
-            throw PsiException("analytic gradients require nat_orbs false",__FILE__,__LINE__);
-        }
+        // if ( options_.get_bool("NAT_ORBS") || options_.get_bool("FCIDUMP") || options_.get_bool("EXTENDED_KOOPMANS") ) {
+        //     throw PsiException("analytic gradients require nat_orbs false",__FILE__,__LINE__);
+        // }
 
         // write checkpoint file for next step in optimization
         WriteCheckpointFile();

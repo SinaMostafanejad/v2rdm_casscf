@@ -29,6 +29,8 @@
 #include <psi4/liboptions/liboptions.h>
 #include <psi4/libqt/qt.h>
 
+#include <psi4/libpsi4util/PsiOutStream.h>
+
 #include<psi4/libtrans/integraltransform.h>
 #include<psi4/libtrans/mospace.h>
 
@@ -131,6 +133,11 @@ void v2RDMSolver::OrbitalLagrangian() {
     }
 
     // transform orbital lagrangian to SO basis
+
+    outfile->Printf("\n");
+    outfile->Printf("    ==> WARNING <== Lagrangian is written in MO or NO basis, not SO\n");
+    outfile->Printf("\n");
+    return;
 
     SharedMatrix Xmo(new Matrix(Lagrangian_));
 
