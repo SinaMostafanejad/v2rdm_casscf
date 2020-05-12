@@ -133,35 +133,37 @@ void v2RDMSolver::OrbitalLagrangian() {
     }
 
     // transform orbital lagrangian to SO basis
+    if ( !(options_.get_bool("SO_LAGRANGIAN")) ) {
+       outfile->Printf("\n");
+       outfile->Printf("    ==> WARNING <== Lagrangian is written in MO or NO basis, not SO\n");
+       outfile->Printf("\n");
+       return;
 
-    outfile->Printf("\n");
-    outfile->Printf("    ==> WARNING <== Lagrangian is written in MO or NO basis, not SO\n");
-    outfile->Printf("\n");
-    return;
+    } else { // this else is not needed but putting it for clarity
 
-    SharedMatrix Xmo(new Matrix(Lagrangian_));
+       SharedMatrix Xmo(new Matrix(Lagrangian_));
 
-    int symm = Lagrangian_->symmetry();
+       int symm = Lagrangian_->symmetry();
 
-    double * temp = (double*)malloc(Ca_->max_ncol() * Ca_->max_nrow() * sizeof(double));
+       double * temp = (double*)malloc(Ca_->max_ncol() * Ca_->max_nrow() * sizeof(double));
 
-    Lagrangian_->zero();
-    for (int h = 0; h < nirrep_; h++) {
-        int nmol = Ca_->colspi()[h];
-        int nmor = Ca_->colspi()[h^symm];
-        int nsol = Ca_->rowspi()[h];
-        int nsor = Ca_->rowspi()[h^symm];
-        if (!nmol || !nmor || !nsol || !nsor) continue;
-        double** Clp = Ca_->pointer(h);
-        double** Crp = Ca_->pointer(h^symm);
-        double** Xmop = Xmo->pointer(h^symm);
-        double** Xsop = Lagrangian_->pointer(h^symm);
-        C_DGEMM('N','T',nmol,nsor,nmor,1.0,Xmop[0],nmor,Crp[0],nmor,0.0,temp,nsor);
-        C_DGEMM('N','N',nsol,nsor,nmol,1.0,Clp[0],nmol,temp,nsor,0.0,Xsop[0],nsor);
+       Lagrangian_->zero();
+       for (int h = 0; h < nirrep_; h++) {
+           int nmol = Ca_->colspi()[h];
+           int nmor = Ca_->colspi()[h^symm];
+           int nsol = Ca_->rowspi()[h];
+           int nsor = Ca_->rowspi()[h^symm];
+           if (!nmol || !nmor || !nsol || !nsor) continue;
+           double** Clp = Ca_->pointer(h);
+           double** Crp = Ca_->pointer(h^symm);
+           double** Xmop = Xmo->pointer(h^symm);
+           double** Xsop = Lagrangian_->pointer(h^symm);
+           C_DGEMM('N','T',nmol,nsor,nmor,1.0,Xmop[0],nmor,Crp[0],nmor,0.0,temp,nsor);
+           C_DGEMM('N','N',nsol,nsor,nmol,1.0,Clp[0],nmol,temp,nsor,0.0,Xsop[0],nsor);
+       }
+
+       free(temp);
     }
-
-    free(temp);
-
     //Lagrangian_->print();
 
 }

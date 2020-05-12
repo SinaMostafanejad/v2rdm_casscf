@@ -175,6 +175,9 @@ int read_options(std::string name, Options& options)
         MOLDEN output file, the Hessian file, the internal coordinate file,
         etc. Use the add_str_i function to make this string case sensitive. -*/
         options.add_str_i("WRITER_FILE_LABEL", "v2rdm_casscf");
+        /*- Should v2RDM transform Lagrangian to SO basis? (or keep it in MO/NO basis) */	
+	options.add_bool("SO_LAGRANGIAN", true);
+
     }
 
     return true;
